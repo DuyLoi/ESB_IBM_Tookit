@@ -1,0 +1,308 @@
+BROKER SCHEMA Version1.DoPayment.ESQLs
+DECLARE ns44 NAMESPACE 'http://www.tpb.vn/entity/vn/com/remit/1';
+
+CREATE COMPUTE MODULE DoPaymentResponse
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE message CHARACTER;
+		DECLARE extCode CHARACTER '96';
+		DECLARE extDesc CHARACTER 'System Error';
+		DECLARE status CHARACTER '1';
+		DECLARE respStatus CHARACTER '';
+		DECLARE isSysErr CHARACTER Environment.Variables.XCurrent.Trans.SysErr;
+
+		IF Environment.Variables.ErrorMapping.* IS NOT NULL THEN
+			SET extCode = Environment.Variables.ErrorMapping.ErrorCode;
+			SET extDesc = Environment.Variables.ErrorMapping.ErrorDesc;
+			SET OutputRoot.XMLNSC.ns:DoPaymentRes.common:ResponseStatus.common:ErrorInfo.common:ErrorCode = extCode;
+			SET OutputRoot.XMLNSC.ns:DoPaymentRes.common:ResponseStatus.common:ErrorInfo.common:ErrorDesc = extDesc;
+
+			SET OutputRoot.XMLNSC.ns:DoPaymentRes.common:ResponseStatus.common:Status = status;
+			SET message = 'ErrorCode: ' || extCode || '; ErrorDesc: ' || extDesc;
+		ELSE
+			IF isSysErr IS NULL OR isSysErr <> '1' THEN
+				--BANGTT: Phien ban cu Xcurent tra ra InputRoot.BLOB.BLOB khi thanh cong nhung 
+				--pban moi tra thang ra JSON.Data
+				--CREATE LASTCHILD OF Environment.Variables.DoPayment DOMAIN 'JSON' PARSE(InputRoot.BLOB.BLOB);
+				--DECLARE jsonDataRef REFERENCE TO Environment.Variables.DoPayment.JSON.Data;
+				DECLARE jsonDataRef REFERENCE TO InputRoot.JSON.Data;
+				
+				SET extCode = '00';
+				SET extDesc = 'Giao dich thanh cong';
+				SET status = '0';
+				SET OutputRoot.XMLNSC.ns:DoPaymentRes.common:ResponseStatus.common:Status = status;
+				SET OutputRoot.XMLNSC.ns:DoPaymentRes.common:ResponseStatus.common:ErrorInfo.common:ErrorCode = extCode;
+				SET OutputRoot.XMLNSC.ns:DoPaymentRes.common:ResponseStatus.common:ErrorInfo.common:ErrorDesc = extDesc;
+				
+				SET OutputRoot.XMLNSC.ns:DoPaymentRes.ns:BodyRes.* = NULL;
+				DECLARE bodyResRef REFERENCE TO OutputRoot.XMLNSC.ns:DoPaymentRes.ns:BodyRes;
+				
+				SET bodyResRef.ns:Payment.ns44:PaymentId = jsonDataRef.payment_id;
+				SET bodyResRef.ns:Payment.ns44:ContractHash = jsonDataRef.contract_hash;
+
+				SET bodyResRef.ns:Payment.ns44:InternalInfo.ns44:InternalId = jsonDataRef.internal_info.internal_id;
+				SET bodyResRef.ns:Payment.ns44:InternalInfo.ns44:ConnectorRole = jsonDataRef.internal_info.connector_role;
+				SET bodyResRef.ns:Payment.ns44:InternalInfo.ns44:Labels = jsonDataRef.internal_info.labels;
+
+				SET bodyResRef.ns:Payment.ns44:PaymentState = jsonDataRef.payment_state;
+				SET bodyResRef.ns:Payment.ns44:ModifiedAt = jsonDataRef.modified_at;
+
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:SenderEndToEndId = jsonDataRef.contract.sender_end_to_end_id;
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:CreatedAt = jsonDataRef.contract.created_at;
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:ExpiresAt = jsonDataRef.contract.expires_at;
+
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteId = jsonDataRef.contract.quote.quote_id;
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:CreatedAt = jsonDataRef.contract.quote.created_at;
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:ExpiresAt = jsonDataRef.contract.quote.expires_at;
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:Type = jsonDataRef.contract.quote.type;
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:PriceGuarantee = jsonDataRef.contract.quote.price_guarantee;
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:SenderAddress = jsonDataRef.contract.quote.sender_address;
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:ReceiverAddress = jsonDataRef.contract.quote.receiver_address;
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:Amount = jsonDataRef.contract.quote.amount;
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:CurrencyCode = jsonDataRef.contract.quote.currency_code;
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:CurrencyCodeFilter = jsonDataRef.contract.quote.currency_code_filter;
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:ServiceType = jsonDataRef.contract.quote.service_type;
+				-- GET Data of quoteElements
+				DECLARE NoOfQuoteElemItems INTEGER CARDINALITY(jsonDataRef.contract.quote.quoteElements.Item[]);
+				DECLARE i INTEGER 1;
+				WHILE i <= NoOfQuoteElemItems DO
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:Currency = jsonDataRef.contract.quote.quoteElements.Item[i].transfer_currency_code;
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:QuoteElementId = jsonDataRef.contract.quote.quoteElements.Item[i].quote_element_id;
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:QuoteElementType = jsonDataRef.contract.quote.quoteElements.Item[i].quote_element_type;
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:QuoteElementOrder = jsonDataRef.contract.quote.quoteElements.Item[i].quote_element_order;
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:SenderAddress = jsonDataRef.contract.quote.quoteElements.Item[i].sender_address;
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:ReceiverAddress = jsonDataRef.contract.quote.quoteElements.Item[i].receiver_address;
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:SendingAmount = jsonDataRef.contract.quote.quoteElements.Item[i].sending_amount;
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:Amount = jsonDataRef.contract.quote.quoteElements.Item[i].receiving_amount;
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:SendingFee = jsonDataRef.contract.quote.quoteElements.Item[i].sending_fee;
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:ReceivingFee = jsonDataRef.contract.quote.quoteElements.Item[i].receiving_fee;
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:SendingCurrencyCode = jsonDataRef.contract.quote.quoteElements.Item[i].sending_currency_code;
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:ReceivingCurrencyCode = jsonDataRef.contract.quote.quoteElements.Item[i].receiving_currency_code;
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:FxRate.ns44:Rate = jsonDataRef.contract.quote.quoteElements.Item[i].fx_rate.rate;
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:FxRate.ns44:BaseCurrencyCode = jsonDataRef.contract.quote.quoteElements.Item[i].fx_rate.base_currency_code;
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:FxRate.ns44:CounterCurrencyCode = jsonDataRef.contract.quote.quoteElements.Item[i].fx_rate.counter_currency_code;
+					SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:QuoteElements.ns44:Item[i].ns44:FxRate.ns44:Type = jsonDataRef.contract.quote.quoteElements.Item[i].fx_rate.type;
+					SET i = i + 1;
+				END WHILE;
+
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:LiquidityWarning = jsonDataRef.contract.quote.liquidityWarning;
+				SET bodyResRef.ns:Payment.ns44:Contract.ns44:Quote.ns44:PaymentMethod = jsonDataRef.contract.quote.payment_method;
+				-- GET Data of userInfo
+				DECLARE NoOfUserInfoItems INTEGER CARDINALITY(jsonDataRef.user_info.Item[]);
+				DECLARE k INTEGER 1;
+				WHILE k <= NoOfUserInfoItems DO
+					SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:NodeAddress = jsonDataRef.user_info.Item[k].node_address;
+					-- Get data of accepted Json
+					DECLARE NoOfAcceptedJson INTEGER CARDINALITY(jsonDataRef.user_info.Item[k].accepted.Item[]);
+					DECLARE c_accepted INTEGER 1;
+					WHILE c_accepted <= NoOfAcceptedJson DO
+						 SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:CreateAt = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].created_at;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterAccountNumber = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.DbtrAcct.Id.Othr.Id;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterName = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.Nm;
+						-- IF jsonDataRef.jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.Id.OrgId.* IS NOT NULL THEN
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterAccountType = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.Id.OrgId.Othr.SchmeNm.Cd;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterIdentificationType = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.Id.OrgId.SchmeNm.Cd;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterIdentificationNumber = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.Id.OrgId.Othr.Id;
+						-- ELSEIF jsonDataRef.jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.Id.PrvtId.* IS NOT NULL THEN
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterAccountType = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.Id.PrvtId.Othr.SchmeNm.Cd;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterIdentificationType = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.Id.PrvtId.SchmeNm.Cd;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterIdentificationNumber = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.Id.PrvtId.Othr.Id;
+						-- END IF;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterCountryCode = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.PstlAdr.Ctry;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterAddress = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.PstlAdr.AdrLine;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitPurposeCode = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.PmtTpInf.CtgyPurp.Prtry;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterSourceOfIncome = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Purp.Prtry;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterBeneficiaryRelationship = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.CtctDtls.Othr;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterContactNumber = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.CtctDtls.PhneNb;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterDateOfBirth = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.Id.PrvtId.DtAndPlcOfBirth.BirthDt;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterCity = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.PstlAdr.TwnNm;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterState = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.PstlAdr.CtrySubDvsn;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:RemitterPostCode = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.PstlAdr.PstCd;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryName = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.Nm;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryAddress = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.PstlAdr.AdrLine;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryCity = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.PstlAdr.TwnNm;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryCountryCode = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.PstlAdr.Ctry;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryEmail = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.CtctDtls.EmailAdr;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryBankAccountType = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.CdtrAcct.Tp.Cd;
+						-- IF jsonDataRef.jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.Id.OrgId.* IS NOT NULL THEN
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryAccountType = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.Id.OrgId.Othr.SchmeNm.Cd;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryIdentificationType = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.Id.OrgId.SchmeNm.Cd;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryIdentificationValue = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.Id.OrgId.Othr.Id;
+						-- ELSEIF jsonDataRef.jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.Id.PrvtId.* IS NOT NULL THEN
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryAccountType = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.Id.PrvtId.Othr.SchmeNm.Cd;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryIdentificationType = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.Id.PrvtId.SchmeNm.Cd;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryIdentificationValue = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.Id.PrvtId.Othr.Id;
+						-- END IF;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryContactNumber = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.CtctDtls.MobNb;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryState = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.PstlAdr.CtrySubDvsn;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryPostcode = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.PstlAdr.PstCd;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryAccountNumber = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.CdtrAcct.Id.Othr.Id;
+						-- SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:BeneficiaryBankName = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.CdtrAgt.FinInstnId.Nm;
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:FromSwiftCode = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.DbtrAgt.FinInstnId.BICFI;
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:TraceNo = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.sender_end_to_end_id;
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:FromAcctNo = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.DbtrAcct.Id.Othr.Id;
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:FromAcctName = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.DbtrAcct.Nm;
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:FromAcctAddr = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Dbtr.PstlAdr.AdrLine;
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:ToSwiftCode = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.CdtrAgt.FinInstnId.BICFI;
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:ToAcctNo = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.CdtrAcct.Id.Othr.Id;
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:ToAcctName = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.CdtrAcct.Nm;
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:ToAcctAddr = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.Cdtr.PstlAdr.AdrLine;
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:TransInfo = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.RmtInf.Ustrd;
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Accepted.ns44:Item[c_accepted].ns44:DetailsCharges = jsonDataRef.user_info.Item[k].accepted.Item[c_accepted].json.ChrgBr;
+						SET c_accepted = c_accepted + 1;
+					END WHILE;
+					-- Get data of locked Json
+					DECLARE NoOfLockedJson INTEGER CARDINALITY(jsonDataRef.user_info.Item[k].locked.Item[]);
+					DECLARE c_locked INTEGER 1;
+					WHILE c_locked <= NoOfLockedJson DO
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Locked.ns44:CreatedAt = jsonDataRef.user_info.Item[k].locked.Item[c_locked].created_at;
+						SET c_locked = c_locked + 1;
+					END WHILE;
+					-- Get data of lock_declined Json
+					DECLARE NoOfLockedDeclinedJson INTEGER CARDINALITY(jsonDataRef.user_info.Item[k].lock_declined.Item[]);
+					DECLARE c_lockedDelc INTEGER 1;
+					WHILE c_lockedDelc <= NoOfLockedDeclinedJson DO
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:LockDeclined.ns44:CreatedAt = jsonDataRef.user_info.Item[k].lock_declined.Item[c_lockedDelc].created_at;
+						SET c_lockedDelc = c_lockedDelc + 1;
+					END WHILE;
+					-- Get data of retry_accept Json
+					DECLARE NoOfRetryAcceptJson INTEGER CARDINALITY(jsonDataRef.user_info.Item[k].retry_accept.Item[]);
+					DECLARE c_retryAccept INTEGER 1;
+					WHILE c_retryAccept <= NoOfRetryAcceptJson DO
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:RetryAccept.ns44:CreatedAt = jsonDataRef.user_info.Item[k].retry_accept.Item[c_retryAccept].created_at;
+						SET c_retryAccept = c_retryAccept + 1;
+					END WHILE;
+					-- Get data of retry_settlement Json
+					DECLARE NoOfRetrySettlementJson INTEGER CARDINALITY(jsonDataRef.user_info.Item[k].retry_settlement.Item[]);
+					DECLARE c_retrySettlement INTEGER 1;
+					WHILE c_retrySettlement <= NoOfRetrySettlementJson DO
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:RetrySettlement.ns44:CreatedAt = jsonDataRef.user_info.Item[k].retry_settlement.Item[c_retrySettlement].created_at;
+						SET c_retrySettlement = c_retrySettlement + 1;
+					END WHILE;
+					-- Get data of settlement Json
+					DECLARE NoOfSettlementJson INTEGER CARDINALITY(jsonDataRef.user_info.Item[k].settlement.Item[]);
+					DECLARE c_settlement INTEGER 1;
+					WHILE c_settlement <= NoOfSettlementJson DO
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Settlement.ns44:CreatedAt = jsonDataRef.user_info.Item[k].settlement.Item[c_settlement].created_at;
+						SET c_settlement = c_settlement + 1;
+					END WHILE;
+					-- Get data of failed Json
+					DECLARE NoOfFailedJson INTEGER CARDINALITY(jsonDataRef.user_info.Item[k].failed.Item[]);
+					DECLARE c_failed INTEGER 1;
+					WHILE c_failed <= NoOfFailedJson DO
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Failed.ns44:CreatedAt = jsonDataRef.user_info.Item[k].failed.Item[c_failed].created_at;
+						DECLARE NoOfReason INTEGER CARDINALITY(jsonDataRef.user_info.Item[k].failed.Item[c_failed].json.Item[]);
+						DECLARE c_reason INTEGER 1;
+						WHILE c_reason <= NoOfReason DO
+							SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Failed.ns44:Item[c_reason].ns44:Type = jsonDataRef.user_info.Item[k].failed.Item[c_failed].json.Item[c_reason].type;
+							SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Failed.ns44:Item[c_reason].ns44:Code = jsonDataRef.user_info.Item[k].failed.Item[c_failed].json.Item[c_reason].code;
+							SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Failed.ns44:Item[c_reason].ns44:Reason = jsonDataRef.user_info.Item[k].failed.Item[c_failed].json.Item[c_reason].reason;
+							SET c_reason = c_reason + 1;
+						END WHILE;
+						SET c_failed = c_failed + 1;
+					END WHILE;
+					-- Get data of executed Json
+					DECLARE NoOfExecutedJson INTEGER CARDINALITY(jsonDataRef.user_info.Item[k].executed.Item[]);
+					DECLARE c_executed INTEGER 1;
+					WHILE c_executed <= NoOfExecutedJson DO
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Executed.ns44:CreatedAt = jsonDataRef.user_info.Item[k].executed.Item[c_executed].created_at;
+						SET c_executed = c_executed + 1;
+					END WHILE;
+					-- Get data of completed Json
+					DECLARE NoOfCompletedJson INTEGER CARDINALITY(jsonDataRef.user_info.Item[k].completed.Item[]);
+					DECLARE c_completed INTEGER 1;
+					WHILE c_completed <= NoOfCompletedJson DO
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Completed.ns44:CreatedAt = jsonDataRef.user_info.Item[k].completed.Item[c_completed].created_at;
+						SET c_completed = c_completed + 1;
+					END WHILE;
+					-- Get data of forwarded Json
+					DECLARE NoOfForwardedJson INTEGER CARDINALITY(jsonDataRef.user_info.Item[k].forwarded.Item[]);
+					DECLARE c_forwarded INTEGER 1;
+					WHILE c_forwarded <= NoOfForwardedJson DO
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Forwarded.ns44:CreatedAt = jsonDataRef.user_info.Item[k].forwarded.Item[c_forwarded].created_at;
+						SET c_forwarded = c_forwarded + 1;
+					END WHILE;
+					-- Get data of returned Json
+					DECLARE NoOfReturnedJson INTEGER CARDINALITY(jsonDataRef.user_info.Item[k].returned.Item[]);
+					DECLARE c_returned INTEGER 1;
+					WHILE c_returned <= NoOfReturnedJson DO
+						SET bodyResRef.ns:Payment.ns44:UserInfo.ns44:Item[k].ns44:Returned.ns44:CreatedAt = jsonDataRef.user_info.Item[k].returned.Item[c_returned].created_at;
+						SET c_returned = c_returned + 1;
+					END WHILE;
+
+					SET k = k + 1;
+				END WHILE;
+				SET bodyResRef.ns:Payment.ns44:ExecutionCondition = jsonDataRef.execution_condition;
+				SET bodyResRef.ns:Payment.ns44:CryptoTransactionId = jsonDataRef.crypto_transaction_id;
+				SET bodyResRef.ns:Payment.ns44:Validator = jsonDataRef.validator;
+				SET bodyResRef.ns:Payment.ns44:PaymentType = jsonDataRef.payment_type;
+				SET bodyResRef.ns:Payment.ns44:ReturnsPaymentWithId = jsonDataRef.returns_payment_with_id;
+				SET bodyResRef.ns:Payment.ns44:ReturnedByPaymentWithId = jsonDataRef.returned_by_payment_with_id;
+				--Get data of execution_results
+				DECLARE NoOfExeResultsItems INTEGER CARDINALITY(jsonDataRef.execution_results.Item[]);
+				DECLARE l INTEGER 1;
+				WHILE l <= NoOfExeResultsItems DO
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:TransferCurrencyCode = jsonDataRef.execution_results.Item[l].transfer_currency_code;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:ExecutionResultId = jsonDataRef.execution_results.Item[l].execution_result_id;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:ExecutionTimestamp = jsonDataRef.execution_results.Item[l].execution_timestamp;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:ExecutionResultType = jsonDataRef.execution_results.Item[l].execution_result_type;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:ExecutionResultOrder = jsonDataRef.execution_results.Item[l].execution_result_order;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:SenderAddress = jsonDataRef.execution_results.Item[l].sender_address;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:ReceiverAddress = jsonDataRef.execution_results.Item[l].receiver_address;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:SendingAmount = jsonDataRef.execution_results.Item[l].sending_amount;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:ReceivingAmount = jsonDataRef.execution_results.Item[l].receiving_amount;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:SendingFee = jsonDataRef.execution_results.Item[l].sending_fee;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:ReceivingFee = jsonDataRef.execution_results.Item[l].receiving_fee;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:SendingCurrencyCode = jsonDataRef.execution_results.Item[l].sending_currency_code;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:ReceivingCurrencyCode = jsonDataRef.execution_results.Item[l].receiving_currency_code;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:FxRate.ns44:Rate = jsonDataRef.execution_results.Item[l].fx_rate.rate;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:FxRate.ns44:BaseCurrencyCode = jsonDataRef.execution_results.Item[l].fx_rate.base_currency_code;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:FxRate.ns44:CounterCurrencyCode = jsonDataRef.execution_results.Item[l].fx_rate.counter_currency_code;
+					SET bodyResRef.ns:Payment.ns44:ExecutionResults.ns44:Item[l].ns44:FxRate.ns44:Type = jsonDataRef.execution_results.Item[l].fx_rate.type;
+					SET l = l + 1;
+				END WHILE;
+				SET message = InputRoot.BLOB.BLOB;
+			ELSE
+				DECLARE isTimeOut CHAR Environment.Variables.XCurrent.Trans.TimeoutBreak;
+				IF isSysErr = '1' AND isTimeOut IS NOT NULL AND isTimeOut = '1' THEN
+					SET extCode = '68';
+					SET extDesc = 'Timeout';
+					SET message = 'ErrorCode: ' || extCode || '; ErrorDesc: ' || extDesc;
+				ELSEIF isSysErr = '1' AND isTimeOut = '0' AND InputRoot.BLOB.BLOB IS NOT NULL THEN
+					CREATE LASTCHILD OF Environment.Variables.DoPayment DOMAIN 'JSON' PARSE(InputRoot.BLOB.BLOB);
+					SET extCode = '96';
+					SET extDesc = Environment.Variables.DoPayment.JSON.Data.detail;
+					SET message = InputRoot.BLOB.BLOB;
+				ELSEIF isSysErr = '1' AND isTimeOut = '0' THEN
+					SET extCode = '96';
+					SET extDesc = 'System error';
+					SET message = 'ErrorCode: ' || extCode || '; ErrorDesc: ' || extDesc;
+				END IF;
+				SET OutputRoot.XMLNSC.ns:DoPaymentRes.common:ResponseStatus.common:ErrorInfo.common:ErrorCode = extCode;
+				SET OutputRoot.XMLNSC.ns:DoPaymentRes.common:ResponseStatus.common:ErrorInfo.common:ErrorDesc = extDesc;
+				SET OutputRoot.XMLNSC.ns:DoPaymentRes.common:ResponseStatus.common:Status = status;
+			END IF;
+			IF extCode = '00' THEN
+				SET respStatus = '0';
+			ELSE
+				SET respStatus = '1';
+			END IF;
+			IF respStatus = '1' THEN
+				SET OutputRoot.XMLNSC.ns:DoPaymentRes.common:ResponseStatus.common:GlobalErrorCode = '004';
+				SET OutputRoot.XMLNSC.ns:DoPaymentRes.common:ResponseStatus.common:GlobalErrorDescription = Service.Utils.ESQLs.getGlobalErrorDesc('004');
+				RETURN TRUE;
+			END IF;
+			DECLARE refEnv REFERENCE TO Environment.Variables.SOAVariables.UserDefined.AdditionalInformation;
+
+			DECLARE SaveTargetLog CHARACTER 'off';
+			CALL Service.Utils.ESQLs.getUDFConfig('SOAConfig','SaveTargetLog',refEnv) INTO SaveTargetLog;
+			IF (SaveTargetLog = 'on') THEN
+				SET Environment.Variables.Log.Logtype = 'DB';
+				SET Environment.Variables.Log.Message = message;
+				PROPAGATE TO TERMINAL 'out1' FINALIZE NONE DELETE NONE;
+			END IF;
+			SET Environment.Variables.Log.Logtype = '';
+		END IF;
+		RETURN TRUE;
+	END;
+END MODULE;

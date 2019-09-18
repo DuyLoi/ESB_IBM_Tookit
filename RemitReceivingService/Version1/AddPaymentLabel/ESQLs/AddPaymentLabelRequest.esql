@@ -1,0 +1,41 @@
+BROKER SCHEMA Version1.AddPaymentLabel.ESQLs
+
+
+CREATE COMPUTE MODULE AddPaymentLabelRequest
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE URL_PAYMENT, URL, access_token, label,PaymentId CHARACTER;
+		
+		SET PaymentId = Environment.Variables.AddPaymentLabel.PaymentId;
+		SET access_token = Environment.Variables.Auth.AccessToken;
+		SET label = Environment.Variables.AddPaymentLabel.Label;
+		
+		CALL Remit.Common.ESQLs.getPartnerConfigValue('XCURRENT.URL_PAYMENT') INTO URL_PAYMENT;
+
+		SET URL = URL_PAYMENT || '/' || PaymentId || '/labels';
+		
+		--SET OutputRoot.HTTPRequestHeader."Content-Type"= 'application/json';
+		SET OutputRoot.HTTPRequestHeader."Access-Control-Request-Method"= 'PUT';
+		SET OutputRoot.HTTPRequestHeader."Authorization"= 'Bearer ' || access_token;
+
+		SET OutputLocalEnvironment.Destination.HTTP.QueryString.label = label;
+		SET OutputLocalEnvironment.Destination.HTTP.RequestURL = URL;
+		
+		DECLARE refEnv REFERENCE TO Environment.Variables.SOAVariables.UserDefined.AdditionalInformation;
+		DECLARE SaveTargetLog CHARACTER 'off';
+		CALL Service.Utils.ESQLs.getUDFConfig('SOAConfig','SaveTargetLog',refEnv) INTO SaveTargetLog;
+		IF (SaveTargetLog = 'on') THEN
+			SET Environment.Variables.Log.Logtype = 'DB';
+			DECLARE addIndx INTEGER CARDINALITY(Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[]);
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+1].common:Name = 'TARGETID';
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+1].common:Value = 'XCURRENT';
+
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+2].common:Name = 'TARGETSERVICE';
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+2].common:Value = URL;
+			SET Environment.Variables.Log.Message = 'Access_token: ' || access_token || ';PaymentId: ' || PaymentId;
+			PROPAGATE TO TERMINAL 'out1' FINALIZE NONE DELETE NONE;
+		END IF;
+		SET Environment.Variables.Log.Logtype = '';
+		RETURN TRUE;
+	END;
+END MODULE;

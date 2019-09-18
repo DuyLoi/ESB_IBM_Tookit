@@ -1,0 +1,65 @@
+BROKER SCHEMA Version1.DoPayment.ESQLs
+
+
+CREATE COMPUTE MODULE DoPaymentRequest
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE FNCODE_LOCK_PAYMENT CHARACTER 'REMIT_DO_LOCK_DB_XCUR';
+		DECLARE FNCODE_COMPLETE_PAYMENT CHARACTER 'REMIT_DO_COMPLETE_DB_XCUR';
+		DECLARE FNCODE_FAIL_PAYMENT CHARACTER 'REMIT_DO_FAIL_DB_XCUR';
+		DECLARE URL_PAYMENT, URL, access_token  CHARACTER;
+		
+		DECLARE FunctionCode CHARACTER Environment.Variables.DoPayment.Functioncode;
+		DECLARE PaymentId CHARACTER Environment.Variables.DoPayment.PaymentId;
+		CALL Remit.Common.ESQLs.getPartnerConfigValue('XCURRENT.URL_PAYMENT') INTO URL_PAYMENT;
+		
+		SET access_token = Environment.Variables.Auth.AccessToken;
+		
+		SET OutputRoot.HTTPRequestHeader."Content-Type"= 'application/json';
+		SET OutputRoot.HTTPRequestHeader."Access-Control-Request-Method"= 'POST';
+		SET OutputRoot.HTTPRequestHeader."Authorization"= 'Bearer ' || access_token;
+		
+		IF FunctionCode = FNCODE_LOCK_PAYMENT THEN
+			SET URL = URL_PAYMENT || '/' || PaymentId || '/lock';
+			-- BANGTT: Vi api yeu cau phai co Body truyen di, truyen truong user_info de lay duoc ngay thuc hien tinh nang
+			SET OutputRoot.JSON.Data.internal_id = '';
+		ELSEIF FunctionCode = FNCODE_COMPLETE_PAYMENT THEN
+			SET URL = URL_PAYMENT || '/' || PaymentId || '/complete';
+			-- BANGTT: Vi api yeu cau phai co Body truyen di, truyen truong user_info de lay duoc ngay thuc hien tinh nang
+			SET OutputRoot.JSON.Data.internal_id = '';
+		ELSEIF FunctionCode = FNCODE_FAIL_PAYMENT THEN
+			SET URL = URL_PAYMENT || '/' || PaymentId || '/fail';
+			DECLARE bodyReqRef REFERENCE TO Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:ServiceBody.*[1].*:BodyReq; 
+			DECLARE NoOfReasons INTEGER CARDINALITY(bodyReqRef.*:Reasons.*:Item[]);
+			DECLARE i INTEGER 1;
+			WHILE i <= NoOfReasons DO
+				SET OutputRoot.JSON.Data.reasons.Item[i].type = bodyReqRef.*:Reasons.*:Item[i].*:Type;
+				SET OutputRoot.JSON.Data.reasons.Item[i].code = bodyReqRef.*:Reasons.*:Item[i].*:Code;
+				SET OutputRoot.JSON.Data.reasons.Item[i].reason = bodyReqRef.*:Reasons.*:Item[i].*:Reason;
+				SET i = i + 1;
+			END WHILE;
+		ELSE
+			CALL ErrorHandlers.Common.ESQLs.throwSOAException(002, '016','No matching FuntionCode');
+		END IF;
+		
+		
+		SET OutputLocalEnvironment.Destination.HTTP.RequestURL = URL;
+		
+		DECLARE refEnv REFERENCE TO Environment.Variables.SOAVariables.UserDefined.AdditionalInformation;
+		DECLARE SaveTargetLog CHARACTER 'off';
+		CALL Service.Utils.ESQLs.getUDFConfig('SOAConfig','SaveTargetLog',refEnv) INTO SaveTargetLog;
+		IF (SaveTargetLog = 'on') THEN
+			SET Environment.Variables.Log.Logtype = 'DB';
+			DECLARE addIndx INTEGER CARDINALITY(Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[]);
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+1].common:Name = 'TARGETID';
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+1].common:Value = 'XCURRENT';
+
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+2].common:Name = 'TARGETSERVICE';
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+2].common:Value = URL;
+			SET Environment.Variables.Log.Message = 'Access_token: ' || access_token || ';PaymentId: ' || PaymentId;
+			PROPAGATE TO TERMINAL 'out1' FINALIZE NONE DELETE NONE;
+		END IF;
+		SET Environment.Variables.Log.Logtype = '';
+		RETURN TRUE;
+	END;
+END MODULE;

@@ -1,0 +1,58 @@
+BROKER SCHEMA Version1.DoPayment.ESQLs
+
+
+CREATE COMPUTE MODULE XCurrentFilterFailure
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET OutputRoot = InputRoot;
+		DECLARE rootEx REFERENCE TO InputExceptionList.*[1];
+		DECLARE ex REFERENCE TO rootEx;
+		CALL Service.Utils.ESQLs.moveToFinalException(ex);
+		
+		CASE ex.Number
+		-- Connect timeout
+		WHEN 3150 THEN
+			SET Environment.Variables.XCurrent.Trans.TimeoutBreak = '1';
+			SET Environment.Variables.XCurrent.Trans.SysErr = '1';
+		-- Read timeout
+		WHEN 3151 THEN
+			SET Environment.Variables.XCurrent.Trans.TimeoutBreak = '1';
+			SET Environment.Variables.XCurrent.Trans.SysErr = '1';
+		-- Others
+		ELSE
+			SET Environment.Variables.XCurrent.Trans.TimeoutBreak = '0';
+			SET Environment.Variables.XCurrent.Trans.SysErr = '1';
+		END CASE;
+		RETURN TRUE;
+	END;
+END MODULE;	
+
+CREATE COMPUTE MODULE XCurrentFilterOut
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET OutputRoot = InputRoot;
+		DELETE FIELD OutputRoot.SOAP;
+		SET Environment.Variables.XCurrent.Trans.TimeoutBreak = '0';
+		SET OutputRoot.XMLNSC.* = InputRoot.SOAP.Body.*;
+		RETURN TRUE;
+	END;
+
+	
+END MODULE;
+
+CREATE COMPUTE MODULE XCurrentFilterFault
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		--DECLARE fCode CHARACTER InputRoot.SOAP.Body.ns:Fault.faultcode;
+		--DECLARE fString CHARACTER InputRoot.SOAP.Body.ns:Fault.faultstring;
+		--CALL ErrorHandlers.Common.ESQLs.throwSOAException(004, fCode, fString);
+		SET OutputRoot = InputRoot;
+		SET Environment.Variables.XCurrent.Trans.TimeoutBreak = '0';
+		SET Environment.Variables.XCurrent.Trans.SysErr = '1';
+		
+		RETURN TRUE;
+	END;
+	
+	
+END MODULE;
+

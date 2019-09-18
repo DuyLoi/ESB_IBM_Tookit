@@ -1,0 +1,13 @@
+BROKER SCHEMA Version1.Common.ESQLs
+
+CREATE PROCEDURE PR_GET_AUTH(OUT access_token CHARACTER, OUT dateExperied TIMESTAMP)
+LANGUAGE DATABASE
+EXTERNAL NAME ".pkg_remit.get_auth";
+
+CREATE PROCEDURE PR_CREATE_AUTH(IN access_token CHARACTER,
+								IN token_type CHARACTER, 
+								IN expires_in CHARACTER,
+								IN create_at TIMESTAMP,
+								IN dateExperied TIMESTAMP)
+LANGUAGE DATABASE
+EXTERNAL NAME ".pkg_remit.create_auth";

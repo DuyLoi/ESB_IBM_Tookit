@@ -1,0 +1,49 @@
+BROKER SCHEMA Version1.GetPaymentsInfo.ESQLs
+CREATE COMPUTE MODULE GetPaymentsInfoFilterFailure
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE rootEx REFERENCE TO InputExceptionList.*[1];
+		DECLARE ex REFERENCE TO rootEx;
+		CALL Service.Utils.ESQLs.moveToFinalException(ex);
+
+		CASE ex.Number
+			-- Connect timeout
+		WHEN 3150 THEN
+			SET Environment.Variables.Vnpay.Trans.TimeoutBreak = '1';
+			SET Environment.Variables.Vnpay.Trans.SysErr = '1';
+			-- Read timeout
+		WHEN 3151 THEN
+			SET Environment.Variables.Vnpay.Trans.TimeoutBreak = '1';
+			SET Environment.Variables.Vnpay.Trans.SysErr = '1';
+			-- Others
+		ELSE
+			SET Environment.Variables.Vnpay.Trans.TimeoutBreak = '0';
+			SET Environment.Variables.Vnpay.Trans.SysErr = '1';
+		END CASE;
+		RETURN TRUE;
+	END;
+END MODULE;
+
+CREATE COMPUTE MODULE GetPaymentsInfoFilterOut
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET OutputRoot = InputRoot;
+		DELETE FIELD OutputRoot.SOAP;
+		SET Environment.Variables.Vnpay.Trans.TimeoutBreak = '0';
+		SET OutputRoot.XMLNSC.* = InputRoot.SOAP.Body.*;
+		RETURN TRUE;
+	END;
+
+
+END MODULE;
+
+CREATE COMPUTE MODULE GetPaymentsInfoFilterFault
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		SET OutputRoot = InputRoot;
+		SET Environment.Variables.Mastercard.Trans.TimeoutBreak = '0';
+		SET Environment.Variables.Mastercard.Trans.SysErr = '1';
+		SET Environment.Variables.Mastercard.Trans.ResponseError = InputRoot.Data.ResponseMessage;
+		RETURN TRUE;
+	END;
+END MODULE;

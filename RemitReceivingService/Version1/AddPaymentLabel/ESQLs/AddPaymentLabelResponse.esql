@@ -1,0 +1,89 @@
+BROKER SCHEMA Version1.AddPaymentLabel.ESQLs
+DECLARE ns44 NAMESPACE 'http://www.tpb.vn/entity/vn/com/remit/1';
+
+CREATE COMPUTE MODULE AddPaymentLabelResponse
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE message CHARACTER;
+		DECLARE extCode CHARACTER '96';
+		DECLARE extDesc CHARACTER 'System Error';
+		DECLARE status CHARACTER '1';
+		DECLARE respStatus CHARACTER '';
+		DECLARE isSysErr CHARACTER Environment.Variables.XCurrent.Trans.SysErr;
+		
+		IF Environment.Variables.ErrorMapping.* IS NOT NULL THEN
+			SET extCode = Environment.Variables.ErrorMapping.ErrorCode;
+			SET extDesc = Environment.Variables.ErrorMapping.ErrorDesc;
+			
+			SET OutputRoot.XMLNSC.ns:AddPaymentLabelRes.common:ResponseStatus.common:ErrorInfo.common:ErrorCode = extCode;
+			SET OutputRoot.XMLNSC.ns:AddPaymentLabelRes.common:ResponseStatus.common:ErrorInfo.common:ErrorDesc = extDesc;
+			SET OutputRoot.XMLNSC.ns:AddPaymentLabelRes.common:ResponseStatus.common:Status = status;
+			SET message = 'ErrorCode: ' || extCode || '; ErrorDesc: ' || extDesc;
+		ELSE
+			IF isSysErr IS NULL OR isSysErr <> '1' THEN
+				--duy loi 
+				DECLARE statusRes CHARACTER InputRoot.HTTPResponseHeader."X-Original-HTTP-Status-Code";
+				IF statusRes = '200' THEN
+					SET extCode = '00';
+					SET extDesc = 'Giao dich thanh cong';
+					SET status = '0';
+					SET OutputRoot.XMLNSC.ns:AddPaymentLabelRes.ns:BodyRes.* = NULL;
+					DECLARE bodyResRef REFERENCE TO OutputRoot.XMLNSC.ns:AddPaymentLabelRes.ns:BodyRes;
+					SET bodyResRef.ns:PaymentId	= Environment.Variables.AddPaymentLabel.PaymentId;
+				ELSE
+					SET extCode = '68';
+					SET extDesc = 'Timeout';
+					SET status = '1';
+				END IF;
+					SET OutputRoot.XMLNSC.ns:AddPaymentLabelRes.common:ResponseStatus.common:Status = status;
+					SET OutputRoot.XMLNSC.ns:AddPaymentLabelRes.common:ResponseStatus.common:ErrorInfo.common:ErrorCode = extCode;
+					SET OutputRoot.XMLNSC.ns:AddPaymentLabelRes.common:ResponseStatus.common:ErrorInfo.common:ErrorDesc = extDesc;
+			ELSE
+				DECLARE isTimeOut CHAR Environment.Variables.XCurrent.Trans.TimeoutBreak;
+				IF isSysErr = '1' AND isTimeOut IS NOT NULL AND isTimeOut = '1' THEN
+					SET extCode = '68';
+					SET extDesc = 'Timeout';
+					SET message = 'ErrorCode: ' || extCode || '; ErrorDesc: ' || extDesc;
+				ELSEIF isSysErr = '1' AND isTimeOut = '0' AND InputRoot.BLOB.BLOB IS NOT NULL THEN
+					CREATE LASTCHILD OF Environment.Variables.AddPaymentLabel DOMAIN 'JSON' PARSE(InputRoot.BLOB.BLOB);
+					SET extCode = '96';
+					SET extDesc = Environment.Variables.AddPaymentLabel.JSON.Data.detail;
+					SET message = InputRoot.BLOB.BLOB;
+				ELSEIF isSysErr = '1' AND isTimeOut = '0' THEN
+					SET extCode = '96';
+					SET extDesc = 'System error';
+					SET message = 'ErrorCode: ' || extCode || ' ErrorDesc: ' || extDesc;
+				END IF;
+				SET OutputRoot.XMLNSC.ns:AddPaymentLabelRes.common:ResponseStatus.common:ErrorInfo.common:ErrorCode = extCode;
+				SET OutputRoot.XMLNSC.ns:AddPaymentLabelRes.common:ResponseStatus.common:ErrorInfo.common:ErrorDesc = extDesc;
+				SET OutputRoot.XMLNSC.ns:AddPaymentLabelRes.common:ResponseStatus.common:Status = status;
+				
+			END IF;
+			
+			IF extCode = '00' THEN
+				SET respStatus = '0';
+			ELSE
+				SET respStatus = '1';
+			END IF;
+			
+			IF respStatus = '1' THEN
+				SET OutputRoot.XMLNSC.ns:AddPaymentLabelRes.common:ResponseStatus.common:GlobalErrorCode = '004';
+				SET OutputRoot.XMLNSC.ns:AddPaymentLabelRes.common:ResponseStatus.common:GlobalErrorDescription = Service.Utils.ESQLs.getGlobalErrorDesc('004');
+				RETURN TRUE;
+			END IF;
+			
+			DECLARE refEnv REFERENCE TO Environment.Variables.SOAVariables.UserDefined.AdditionalInformation;
+			DECLARE SaveTargetLog CHARACTER 'off';
+			CALL Service.Utils.ESQLs.getUDFConfig('SOAConfig','SaveTargetLog',refEnv) INTO SaveTargetLog;
+			
+			IF (SaveTargetLog = 'on') THEN
+				SET Environment.Variables.Log.Logtype = 'DB';
+				SET Environment.Variables.Log.Message = message;
+				PROPAGATE TO TERMINAL 'out1' FINALIZE NONE DELETE NONE;
+			END IF;
+			
+			SET Environment.Variables.Log.Logtype = '';
+		END IF;
+		RETURN TRUE;
+	END;
+END MODULE;

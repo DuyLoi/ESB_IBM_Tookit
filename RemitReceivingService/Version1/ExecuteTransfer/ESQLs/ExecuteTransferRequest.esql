@@ -1,0 +1,45 @@
+BROKER SCHEMA Version1.ExecuteTransfer.ESQLs
+
+
+CREATE COMPUTE MODULE ExecuteTransferRequest
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE URL, access_token, SenderAddress, ReceiverAddress, Amount CHARACTER;
+		
+		SET SenderAddress = Environment.Variables.ExecuteTransfer.SenderAddress;
+		SET ReceiverAddress = Environment.Variables.ExecuteTransfer.ReceiverAddress;
+		SET Amount = Environment.Variables.ExecuteTransfer.Amount;
+		SET access_token = Environment.Variables.Auth.AccessToken;
+		
+		CALL Remit.Common.ESQLs.getPartnerConfigValue('XCURRENT.URL_EXCUTE_TRANSFER') INTO URL;
+	
+		--SET URL = URL_TRANSFER || '/' || 'execute';	
+
+		SET OutputRoot.HTTPRequestHeader."Content-Type"= 'application/json';
+		SET OutputRoot.HTTPRequestHeader."Access-Control-Request-Method"= 'POST';
+		SET OutputRoot.HTTPRequestHeader."Authorization"= 'Bearer ' || access_token;
+
+		SET OutputRoot.JSON.Data.sender_address = SenderAddress;
+		SET OutputRoot.JSON.Data.receiver_address = ReceiverAddress;
+		SET OutputRoot.JSON.Data.amount = Amount;
+		
+		SET OutputLocalEnvironment.Destination.HTTP.RequestURL = URL;
+		
+		DECLARE refEnv REFERENCE TO Environment.Variables.SOAVariables.UserDefined.AdditionalInformation;
+		DECLARE SaveTargetLog CHARACTER 'off';
+		CALL Service.Utils.ESQLs.getUDFConfig('SOAConfig','SaveTargetLog',refEnv) INTO SaveTargetLog;
+		IF (SaveTargetLog = 'on') THEN
+			SET Environment.Variables.Log.Logtype = 'DB';
+			DECLARE addIndx INTEGER CARDINALITY(Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[]);
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+1].common:Name = 'TARGETID';
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+1].common:Value = 'XCURRENT';
+
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+2].common:Name = 'TARGETSERVICE';
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+2].common:Value = URL;
+			SET Environment.Variables.Log.Message = 'Access_token: ' || access_token ;
+			PROPAGATE TO TERMINAL 'out1' FINALIZE NONE DELETE NONE;
+		END IF;
+		SET Environment.Variables.Log.Logtype = '';
+		RETURN TRUE;
+	END;
+END MODULE;

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ecore:EPackage xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:ComIbmSOAPInput.msgnode="ComIbmSOAPInput.msgnode" xmlns:ComIbmSOAPReply.msgnode="ComIbmSOAPReply.msgnode" xmlns:Service_Common_Subflows_SOAHandleException.subflow="Service/Common/Subflows/SOAHandleException.subflow" xmlns:Service_Common_Subflows_SOAHandleRequest.subflow="Service/Common/Subflows/SOAHandleRequest.subflow" xmlns:Service_Common_Subflows_SOAHandleResponse.subflow="Service/Common/Subflows/SOAHandleResponse.subflow"
+    xmlns:Version1_AddPaymentLabel_SubFlows_AddPaymentLabel.subflow="Version1/AddPaymentLabel/SubFlows/AddPaymentLabel.subflow" xmlns:Version1_DoPayment_SubFlows_DoPayment.subflow="Version1/DoPayment/SubFlows/DoPayment.subflow" xmlns:Version1_ExecuteTransfer_SubFlows_ExecuteTransfer.subflow="Version1/ExecuteTransfer/SubFlows/ExecuteTransfer.subflow" xmlns:Version1_GetPaymentsInfo_SubFlows_GetPaymentsInfo.subflow="Version1/GetPaymentsInfo/SubFlows/GetPaymentsInfo.subflow" xmlns:Version1_XcurrAml_SubFlows_XcurrAml.subflow="Version1/XcurrAml/SubFlows/XcurrAml.subflow"
+    xmlns:ecore="http://www.eclipse.org/emf/2002/Ecore" xmlns:eflow="http://www.ibm.com/wbi/2005/eflow" xmlns:utility="http://www.ibm.com/wbi/2005/eflow_utility" nsURI="ServiceImpt/RemitService.msgflow" nsPrefix="ServiceImpt_RemitService.msgflow">
+  <eClassifiers xmi:type="eflow:FCMComposite" name="FCMComposite_1">
+    <eSuperTypes href="http://www.ibm.com/wbi/2005/eflow#//FCMBlock"/>
+    <translation xmi:type="utility:TranslatableString" key="RemitService" bundleName="ServiceImpt/RemitService" pluginId="RemitReceivingService"/>
+    <colorGraphic16 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/RemitReceivingService/icons/full/obj16/RemitService.gif"/>
+    <colorGraphic32 xmi:type="utility:GIFFileGraphic" resourceName="platform:/plugin/RemitReceivingService/icons/full/obj30/RemitService.gif"/>
+    <composition>
+      <nodes xmi:type="ComIbmSOAPInput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_1" location="23,57" wsdlFileName="wsdls/RemitReceivingService.wsdl" selectedPortType="RemitReceivingService" selectedBinding="RemitReceivingServiceSOAP" selectedPort="RemitReceivingServiceSOAP" targetNamespace="http://www.tpb.vn/service/vn/remit/receiving/1" useHTTPTransport="true" urlSelector="/service/vn/remit/receiving/1" allowQueryWSDL="true" messageSetProperty="{ESBMessageLib}">
+        <translation xmi:type="utility:ConstantString" string="SOAP HTTP"/>
+      </nodes>
+      <nodes xmi:type="Service_Common_Subflows_SOAHandleException.subflow:FCMComposite_1" xmi:id="FCMComposite_1_2" location="160,172">
+        <translation xmi:type="utility:ConstantString" string="SOAHandleException"/>
+      </nodes>
+      <nodes xmi:type="Service_Common_Subflows_SOAHandleRequest.subflow:FCMComposite_1" xmi:id="FCMComposite_1_3" location="161,53">
+        <translation xmi:type="utility:ConstantString" string="SOAHandleRequest"/>
+      </nodes>
+      <nodes xmi:type="Service_Common_Subflows_SOAHandleResponse.subflow:FCMComposite_1" xmi:id="FCMComposite_1_4" location="571,110">
+        <translation xmi:type="utility:ConstantString" string="SOAHandleResponse"/>
+      </nodes>
+      <nodes xmi:type="ComIbmSOAPInput.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_5" location="22,165" wsdlFileName="wsdls/RemitReceivingService.wsdl" selectedPortType="RemitReceivingService" selectedBinding="RemitReceivingServiceSOAP" selectedPort="RemitReceivingServiceSOAP" targetNamespace="http://www.tpb.vn/service/vn/remit/receiving/1" useHTTPTransport="true" urlSelector="/service/vn/remit/receiving/1" useHTTPS="true" allowQueryWSDL="true" messageSetProperty="{ESBMessageLib}">
+        <translation xmi:type="utility:ConstantString" string="SOAP HTTPS"/>
+      </nodes>
+      <nodes xmi:type="ComIbmSOAPReply.msgnode:FCMComposite_1" xmi:id="FCMComposite_1_7" location="741,110">
+        <translation xmi:type="utility:ConstantString" string="SOAP Reply"/>
+      </nodes>
+      <nodes xmi:type="Version1_GetPaymentsInfo_SubFlows_GetPaymentsInfo.subflow:FCMComposite_1" xmi:id="FCMComposite_1_9" location="364,34">
+        <translation xmi:type="utility:ConstantString" string="GetPaymentsInfo"/>
+      </nodes>
+      <nodes xmi:type="Version1_DoPayment_SubFlows_DoPayment.subflow:FCMComposite_1" xmi:id="FCMComposite_1_11" location="379,113">
+        <translation xmi:type="utility:ConstantString" string="DoPayment"/>
+      </nodes>
+      <nodes xmi:type="Version1_XcurrAml_SubFlows_XcurrAml.subflow:FCMComposite_1" xmi:id="FCMComposite_1_6" location="380,188">
+        <translation xmi:type="utility:ConstantString" string="XcurrAml"/>
+      </nodes>
+      <nodes xmi:type="Version1_AddPaymentLabel_SubFlows_AddPaymentLabel.subflow:FCMComposite_1" xmi:id="FCMComposite_1_8" location="362,261">
+        <translation xmi:type="utility:ConstantString" string="AddPaymentLabel"/>
+      </nodes>
+      <nodes xmi:type="Version1_ExecuteTransfer_SubFlows_ExecuteTransfer.subflow:FCMComposite_1" xmi:id="FCMComposite_1_10" location="367,335">
+        <translation xmi:type="utility:ConstantString" string="ExecuteTransfer"/>
+      </nodes>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_1" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.Input1"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_2" targetNode="FCMComposite_1_3" sourceNode="FCMComposite_1_5" sourceTerminalName="OutTerminal.out" targetTerminalName="InTerminal.Input1"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_3" targetNode="FCMComposite_1_2" sourceNode="FCMComposite_1_5" sourceTerminalName="OutTerminal.failure" targetTerminalName="InTerminal.Catch"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_4" targetNode="FCMComposite_1_2" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.failure" targetTerminalName="InTerminal.Catch"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_5" targetNode="FCMComposite_1_2" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.timeout" targetTerminalName="InTerminal.HTTP%20Timeout"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_6" targetNode="FCMComposite_1_2" sourceNode="FCMComposite_1_1" sourceTerminalName="OutTerminal.catch" targetTerminalName="InTerminal.Failure"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_7" targetNode="FCMComposite_1_2" sourceNode="FCMComposite_1_5" sourceTerminalName="OutTerminal.timeout" targetTerminalName="InTerminal.HTTP%20Timeout"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_8" targetNode="FCMComposite_1_2" sourceNode="FCMComposite_1_5" sourceTerminalName="OutTerminal.catch" targetTerminalName="InTerminal.Failure"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_10" targetNode="FCMComposite_1_7" sourceNode="FCMComposite_1_4" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.in"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_12" targetNode="FCMComposite_1_4" sourceNode="FCMComposite_1_9" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_14" targetNode="FCMComposite_1_4" sourceNode="FCMComposite_1_11" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_9" targetNode="FCMComposite_1_4" sourceNode="FCMComposite_1_6" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_11" targetNode="FCMComposite_1_4" sourceNode="FCMComposite_1_8" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.Input"/>
+      <connections xmi:type="eflow:FCMConnection" xmi:id="FCMConnection_13" targetNode="FCMComposite_1_4" sourceNode="FCMComposite_1_10" sourceTerminalName="OutTerminal.Output" targetTerminalName="InTerminal.Input"/>
+    </composition>
+    <propertyOrganizer/>
+    <stickyBoard/>
+  </eClassifiers>
+</ecore:EPackage>

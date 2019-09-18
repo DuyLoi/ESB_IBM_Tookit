@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?><mappingRoot xmlns="http://www.ibm.com/2008/ccl/Mapping" domainID="com.ibm.msl.mapping.xml" domainIDExtension="mb" mainMap="true" targetNamespace="Version1.XcurrAml.Mappings" version="8.0.5.0" xmlns:map="Version1.XcurrAml.Mappings">
+    <input path="mbsharedlib://ESBMessageLib/service/vn/remit/RemitReceivingsvcs.xsd"/>
+    <output path="mbsharedlib://ESBMessageLib/service/vn/remit/RemitReceivingsvcs.xsd"/>
+    <namespaces>
+        <namespace kind="supplement" prefix="io4" uri="http://www.tpb.vn/common/envelope/commonheader/1"/>
+        <namespace kind="supplement" prefix="io3" uri="http://www.tpb.vn/entity/vn/remit/receiving/1"/>
+        <namespace kind="supplement" prefix="io2" uri="http://www.tpb.vn/entity/vn/com/remit/1"/>
+        <namespace kind="supplement" prefix="io" uri="http://www.tpb.vn/common/envelope/serviceenvelope/1"/>
+    </namespaces>
+    <generation engine="xquery"/>
+    <mappingDeclaration name="Mappings">
+        <input namespace="http://www.tpb.vn/entity/vn/remit/receiving/1" path="mb:msg(XcurrAmlRes,assembly,XMLNSC,Properties)" var="MessageAssembly"/>
+        <output namespace="http://www.tpb.vn/entity/vn/remit/receiving/1" path="mb:msg(XcurrAmlRes,assembly,XMLNSC,Properties)" var="MessageAssembly1"/>
+        <move>
+            <input path="$MessageAssembly/Properties"/>
+            <output path="$MessageAssembly1/Properties"/>
+            <override>
+                <assign value="{ESBMessageLib}">
+                    <output path="$MessageAssembly1/Properties/MessageSet"/>
+                </assign>
+            </override>
+        </move>
+        <local>
+            <input path="$MessageAssembly/XcurrAmlRes/Header"/>
+            <output path="$MessageAssembly1/XcurrAmlRes/Header"/>
+            <local>
+                <input path="Common"/>
+                <output path="Common"/>
+                <move>
+                    <input path="ServiceVersion"/>
+                    <output path="ServiceVersion"/>
+                </move>
+                <move>
+                    <input path="MessageId"/>
+                    <output path="MessageId"/>
+                </move>
+                <move>
+                    <input path="TransactionId"/>
+                    <output path="TransactionId"/>
+                </move>
+                <move>
+                    <input path="MessageTimestamp"/>
+                    <output path="MessageTimestamp"/>
+                </move>
+                <local>
+                    <input path="AdditionalInformation"/>
+                    <output path="AdditionalInformation"/>
+                    <foreach>
+                        <input path="NameValuePairs"/>
+                        <output path="NameValuePairs"/>
+                        <move>
+                            <input path="Name"/>
+                            <output path="Name"/>
+                        </move>
+                        <move>
+                            <input path="Value"/>
+                            <output path="Value"/>
+                        </move>
+                    </foreach>
+                    <move>
+                        <input path="Other"/>
+                        <output path="Other"/>
+                    </move>
+                </local>
+            </local>
+            <local>
+                <input path="Client"/>
+                <output path="Client"/>
+                <move>
+                    <input path="SourceAppID"/>
+                    <output path="SourceAppID"/>
+                </move>
+                <local>
+                    <input path="TargetAppIDs"/>
+                    <output path="TargetAppIDs"/>
+                    <move>
+                        <input path="TargetAppID"/>
+                        <output path="TargetAppID"/>
+                    </move>
+                </local>
+                <local>
+                    <input path="UserDetail"/>
+                    <output path="UserDetail"/>
+                    <move>
+                        <input path="UserId"/>
+                        <output path="UserId"/>
+                    </move>
+                    <move>
+                        <input path="UserRole"/>
+                        <output path="UserRole"/>
+                    </move>
+                    <move>
+                        <input path="UserPassword"/>
+                        <output path="UserPassword"/>
+                    </move>
+                </local>
+            </local>
+        </local>
+        <local>
+            <input path="$MessageAssembly/XcurrAmlRes/ResponseStatus"/>
+            <output path="$MessageAssembly1/XcurrAmlRes/ResponseStatus"/>
+            <move>
+                <input path="Status"/>
+                <output path="Status"/>
+            </move>
+            <move>
+                <input path="GlobalErrorCode"/>
+                <output path="GlobalErrorCode"/>
+            </move>
+            <move>
+                <input path="GlobalErrorDescription"/>
+                <output path="GlobalErrorDescription"/>
+            </move>
+            <foreach>
+                <input path="ErrorInfo"/>
+                <output path="ErrorInfo"/>
+                <move>
+                    <input path="SourceAppID"/>
+                    <output path="SourceAppID"/>
+                </move>
+                <move>
+                    <input path="ErrorCode"/>
+                    <output path="ErrorCode"/>
+                </move>
+                <move>
+                    <input path="ErrorDesc"/>
+                    <output path="ErrorDesc"/>
+                </move>
+            </foreach>
+        </local>
+        <local>
+            <input path="$MessageAssembly/XcurrAmlRes/BodyRes"/>
+            <output path="$MessageAssembly1/XcurrAmlRes/BodyRes"/>
+            <move>
+                <input path="Transaction"/>
+                <output path="Transaction"/>
+            </move>
+        </local>
+    </mappingDeclaration>
+</mappingRoot>

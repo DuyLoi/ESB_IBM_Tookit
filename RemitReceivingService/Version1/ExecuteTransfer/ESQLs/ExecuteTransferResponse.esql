@@ -1,0 +1,101 @@
+BROKER SCHEMA Version1.ExecuteTransfer.ESQLs
+DECLARE ns44 NAMESPACE 'http://www.tpb.vn/entity/vn/com/remit/1';
+
+CREATE COMPUTE MODULE ExecuteTransferResponse
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE message CHARACTER;
+		DECLARE extCode CHARACTER '96';
+		DECLARE extDesc CHARACTER 'System Error';
+		DECLARE status CHARACTER '1';
+		DECLARE respStatus CHARACTER '';
+		DECLARE isSysErr CHARACTER Environment.Variables.XCurrent.Trans.SysErr;
+		
+		DECLARE statusRes CHARACTER InputRoot.HTTPResponseHeader."X-Original-HTTP-Status-Code";
+
+		IF Environment.Variables.ErrorMapping.* IS NOT NULL THEN
+			SET extCode = Environment.Variables.ErrorMapping.ErrorCode;
+			SET extDesc = Environment.Variables.ErrorMapping.ErrorDesc;
+			SET OutputRoot.XMLNSC.ns:ExecuteTransferRes.common:ResponseStatus.common:ErrorInfo.common:ErrorCode = extCode;
+			SET OutputRoot.XMLNSC.ns:ExecuteTransferRes.common:ResponseStatus.common:ErrorInfo.common:ErrorDesc = extDesc;
+
+			SET OutputRoot.XMLNSC.ns:ExecuteTransferRes.common:ResponseStatus.common:Status = status;
+			SET message = 'ErrorCode: ' || extCode || '; ErrorDesc: ' || extDesc;
+		ELSE
+			IF isSysErr IS NULL OR isSysErr <> '1' THEN
+				IF statusRes = '200' THEN
+					CREATE LASTCHILD OF Environment.Variables.ExecuteTransfer DOMAIN 'JSON' PARSE(InputRoot.BLOB.BLOB);
+					DECLARE jsonDataRef REFERENCE TO Environment.Variables.ExecuteTransfer.JSON.Data;
+				
+					SET extCode = '00';
+					SET extDesc = 'Giao dich thanh cong';
+					SET status = '0';
+	
+					SET OutputRoot.XMLNSC.ns:ExecuteTransferRes.ns:BodyRes.* = NULL;
+					DECLARE bodyResRef REFERENCE TO OutputRoot.XMLNSC.ns:ExecuteTransferRes.ns:BodyRes;
+				
+					SET bodyResRef.ns:TransferId = jsonDataRef.transfer_id;
+					SET bodyResRef.ns:State	= jsonDataRef.state;
+					SET bodyResRef.ns:OwnerAddress = jsonDataRef.owner_address;
+					SET bodyResRef.ns:SenderAddress = jsonDataRef.sender_address;
+					SET bodyResRef.ns:ReceiverAddress = jsonDataRef.receiver_address;
+					SET bodyResRef.ns:Amount = jsonDataRef.amount;
+					SET bodyResRef.ns:InternalId = jsonDataRef.internal_id;
+					SET bodyResRef.ns:EndToEndId = jsonDataRef.end_to_end_id;
+					SET bodyResRef.ns:UserInfo.ns44:Item[1].ns44:NodeAddress = jsonDataRef.user_info.Item[1].node_address;
+					SET bodyResRef.ns:UserInfo.ns44:Item[1].ns44:State = jsonDataRef.user_info.Item[1].state;
+					SET message = InputRoot.BLOB.BLOB;
+				ELSE
+					SET extCode = '68';
+					SET extDesc = 'Timeout';
+					SET status = '1';
+				END IF;
+				
+				SET OutputRoot.XMLNSC.ns:ExecuteTransferRes.common:ResponseStatus.common:Status = status;
+				SET OutputRoot.XMLNSC.ns:ExecuteTransferRes.common:ResponseStatus.common:ErrorInfo.common:ErrorCode = extCode;
+				SET OutputRoot.XMLNSC.ns:ExecuteTransferRes.common:ResponseStatus.common:ErrorInfo.common:ErrorDesc = extDesc;
+				
+			ELSE
+				DECLARE isTimeOut CHAR Environment.Variables.XCurrent.Trans.TimeoutBreak;
+				IF isSysErr = '1' AND isTimeOut IS NOT NULL AND isTimeOut = '1' THEN
+					SET extCode = '68';
+					SET extDesc = 'Timeout';
+					SET message = 'ErrorCode: ' || extCode || '; ErrorDesc: ' || extDesc;
+				ELSEIF isSysErr = '1' AND isTimeOut = '0' AND InputRoot.BLOB.BLOB IS NOT NULL THEN
+					CREATE LASTCHILD OF Environment.Variables.ExecuteTransfer DOMAIN 'JSON' PARSE(InputRoot.BLOB.BLOB);
+					SET extCode = '96';
+					SET extDesc = Environment.Variables.ExecuteTransfer.JSON.Data.detail;
+					SET message = InputRoot.BLOB.BLOB;
+				ELSEIF isSysErr = '1' AND isTimeOut = '0' THEN
+					SET extCode = '96';
+					SET extDesc = 'System error';
+					SET message = 'ErrorCode: ' || extCode || '; ErrorDesc: ' || extDesc;
+				END IF;
+				SET OutputRoot.XMLNSC.ns:ExecuteTransferRes.common:ResponseStatus.common:ErrorInfo.common:ErrorCode = extCode;
+				SET OutputRoot.XMLNSC.ns:ExecuteTransferRes.common:ResponseStatus.common:ErrorInfo.common:ErrorDesc = extDesc;
+				SET OutputRoot.XMLNSC.ns:ExecuteTransferRes.common:ResponseStatus.common:Status = status;
+			END IF;
+			IF extCode = '00' THEN
+				SET respStatus = '0';
+			ELSE
+				SET respStatus = '1';
+			END IF;
+			IF respStatus = '1' THEN
+				SET OutputRoot.XMLNSC.ns:ExecuteTransferRes.common:ResponseStatus.common:GlobalErrorCode = '004';
+				SET OutputRoot.XMLNSC.ns:ExecuteTransferRes.common:ResponseStatus.common:GlobalErrorDescription = Service.Utils.ESQLs.getGlobalErrorDesc('004');
+				RETURN TRUE;
+			END IF;
+			DECLARE refEnv REFERENCE TO Environment.Variables.SOAVariables.UserDefined.AdditionalInformation;
+
+			DECLARE SaveTargetLog CHARACTER 'off';
+			CALL Service.Utils.ESQLs.getUDFConfig('SOAConfig','SaveTargetLog',refEnv) INTO SaveTargetLog;
+			IF (SaveTargetLog = 'on') THEN
+				SET Environment.Variables.Log.Logtype = 'DB';
+				SET Environment.Variables.Log.Message = message;
+				PROPAGATE TO TERMINAL 'out1' FINALIZE NONE DELETE NONE;
+			END IF;
+			SET Environment.Variables.Log.Logtype = '';
+		END IF;
+		RETURN TRUE;
+	END;
+END MODULE;

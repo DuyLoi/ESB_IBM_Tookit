@@ -1,0 +1,30 @@
+BROKER SCHEMA Version1.AddPaymentLabel.ESQLs
+
+
+DECLARE ns NAMESPACE 'http://www.tpb.vn/entity/vn/remit/receiving/1';
+DECLARE soa NAMESPACE 'http://www.tpb.vn/common/envelope/soaenvelope/1';
+DECLARE common NAMESPACE 'http://www.tpb.vn/common/envelope/commonheader/1';
+
+CREATE COMPUTE MODULE CheckAuthAddPaymentLabel
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE SchemaName, access_token CHARACTER;
+		DECLARE dateNow TIMESTAMP CURRENT_TIMESTAMP;
+		DECLARE dateExperied TIMESTAMP;
+		
+		SET Environment.Variables.ns:AddPaymentLabelReq.common:Header = InputRoot.XMLNSC.ns:AddPaymentLabelReq.common:Header;
+		SET Environment.Variables.AddPaymentLabel.PaymentId = InputRoot.XMLNSC.ns:AddPaymentLabelReq.ns:BodyReq.ns:PaymentId;
+		SET Environment.Variables.AddPaymentLabel.Label = InputRoot.XMLNSC.ns:AddPaymentLabelReq.ns:BodyReq.ns:Label;
+		
+		CALL Service.Utils.ESQLs.getUserDefinedConfig('ESBConfig','ESB.Schema') INTO SchemaName;
+		CALL Version1.Common.ESQLs.PR_GET_AUTH(access_token, dateExperied) IN Database.{SchemaName};
+		IF dateNow <= dateExperied THEN
+			SET Environment.Variables.Auth.AccessToken = access_token;
+			PROPAGATE TO TERMINAL 'out' FINALIZE NONE DELETE NONE;
+			RETURN FALSE;
+		ELSE
+			PROPAGATE TO TERMINAL 'out1' FINALIZE NONE DELETE NONE;
+			RETURN FALSE;
+		END IF;
+	END;
+END MODULE;

@@ -1,0 +1,105 @@
+BROKER SCHEMA Version1.XcurrAml.ESQLs
+
+DECLARE ns NAMESPACE 'http://www.tpb.vn/entity/vn/remit/receiving/1';
+DECLARE ns1 NAMESPACE 'http://www.tpb.vn/common/envelope/commonheader/1';
+DECLARE ns12 NAMESPACE 'http://www.tpb.vn/entity/vn/com/remit/1';
+DECLARE soa NAMESPACE 'http://www.tpb.vn/common/envelope/soaenvelope/1';
+
+CREATE PROCEDURE PR_GENERAL_PROCESS (IN p_hostref CHARACTER,
+IN p_xref CHARACTER,
+IN p_user CHARACTER,
+IN p_function_code CHARACTER,
+IN p_xml CHARACTER)
+LANGUAGE DATABASE
+DYNAMIC RESULT SETS 1
+EXTERNAL NAME ".gwpks_esb_router.pr_general_process";
+
+CREATE COMPUTE MODULE XcurrAml
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE SchemaName,SaveTargetLog CHARACTER;
+		DECLARE refEnv REFERENCE TO Environment.Variables.SOAVariables.UserDefined.AdditionalInformation;
+		--Get Schema from ESB Config
+		CALL Service.Utils.ESQLs.getUDFConfig('DBBackendConfig','FCC.Schema',refEnv) INTO SchemaName;
+
+		DECLARE FCODE_GETTRAN CHARACTER 'XCURR-GET-TRAN-AML';
+		DECLARE FCODE_GETUPDATE CHARACTER 'XCURR-GET-UPDATE-AML';
+
+		DECLARE p_hostref, p_xref, p_user, p_fcode, p_xml CHARACTER;
+		DECLARE tranDt, paymentId,linkFile CHARACTER;
+
+		SET p_fcode = InputRoot.XMLNSC.ns:XcurrAmlReq.ns:BodyReq.ns:FunctionCode;
+		SET p_hostref = InputRoot.XMLNSC.ns:XcurrAmlReq.ns:BodyReq.ns:Xref;
+		SET p_xref = InputRoot.XMLNSC.ns:XcurrAmlReq.ns:BodyReq.ns:Xref;
+		SET p_user = InputRoot.XMLNSC.ns:XcurrAmlReq.ns:BodyReq.ns:User;
+		
+		IF p_fcode = FCODE_GETTRAN THEN
+			SET tranDt = InputRoot.XMLNSC.ns:XcurrAmlReq.ns:BodyReq.ns:TranDate;
+			SET p_xml = '<XCURR><TRN_DT>' || tranDt || '</TRN_DT></XCURR>';
+		ELSEIF p_fcode = FCODE_GETUPDATE THEN
+			SET paymentId = InputRoot.XMLNSC.ns:XcurrAmlReq.ns:BodyReq.ns:PaymentId;
+			SET linkFile = InputRoot.XMLNSC.ns:XcurrAmlReq.ns:BodyReq.ns:LinkFile;
+			SET p_xml = '<XCURR><PAYMENT_ID>' || paymentId || '</PAYMENT_ID><LINK_FILE>'|| linkFile ||'</LINK_FILE></XCURR>';
+		END IF;
+		-- LOG START
+		CALL Service.Utils.ESQLs.getUserDefinedConfig('SOAConfig','SaveTargetLog') INTO SaveTargetLog;
+
+		IF (SaveTargetLog = 'on') THEN
+			SET Environment.Variables.Log.Logtype = 'DB';
+			DECLARE addIndx INTEGER CARDINALITY(Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.ns1:AdditionalInformation.ns1:NameValuePairs[]);
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.ns1:AdditionalInformation.ns1:NameValuePairs[addIndx+1].ns1:Name = 'TARGETID';
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.ns1:AdditionalInformation.ns1:NameValuePairs[addIndx+1].ns1:Value = 'XCURRENT';
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.ns1:AdditionalInformation.ns1:NameValuePairs[addIndx+2].ns1:Name = 'TARGETSERVICE';
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.ns1:AdditionalInformation.ns1:NameValuePairs[addIndx+2].ns1:Value = SchemaName || '.gwpks_esb_router.pr_general_process';
+			PROPAGATE TO TERMINAL 'out1' FINALIZE NONE DELETE NONE;
+		END IF;
+		-- CALL PROCEDURE
+		CALL PR_GENERAL_PROCESS(p_hostref, p_xref, p_user, p_fcode, p_xml, Environment.Variables.getInfo.resultSet[]) IN Database.{SchemaName};
+		-- LOG END
+		IF (SaveTargetLog = 'on') THEN
+			SET OutputRoot.XMLNSC.getInfo = Environment.Variables.getInfo;
+			SET Environment.Variables.Log.Message = Service.Utils.ESQLs.ConvertXML2Blob(OutputRoot.XMLNSC.getInfo);
+			DELETE FIELD OutputRoot.XMLNSC;
+			PROPAGATE TO TERMINAL 'out2' FINALIZE NONE DELETE NONE;
+		END IF;
+		--HEADER
+		SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns1:Header = InputRoot.XMLNSC.ns:XcurrAmlReq.ns1:Header;
+		--LOGIC
+		DECLARE outInfo REFERENCE TO Environment.Variables.getInfo;
+		IF p_fcode = FCODE_GETTRAN THEN
+			SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns1:ResponseStatus.ns1:Status = '0';
+			SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns1:ResponseStatus.ns1:ErrorInfo.ns1:ErrorCode = '00';
+			SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns1:ResponseStatus.ns1:ErrorInfo.ns1:ErrorDesc = 'SUCCESS';
+
+			DECLARE NoOfTranItem INTEGER CARDINALITY(Environment.Variables.getInfo.resultSet[]);
+			DECLARE i INTEGER 1;
+			WHILE i <= NoOfTranItem DO
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns:BodyRes.ns:Transaction.ns12:Item[i].ns12:PaymentId = outInfo.resultSet[i].PAYMENT_ID;
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns:BodyRes.ns:Transaction.ns12:Item[i].ns12:FromAccNo = outInfo.resultSet[i].FROM_ACC_NO;
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns:BodyRes.ns:Transaction.ns12:Item[i].ns12:FromAccName = outInfo.resultSet[i].FROM_ACC_NAME;
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns:BodyRes.ns:Transaction.ns12:Item[i].ns12:BenAccNo = outInfo.resultSet[i].BEN_ACC_NO;
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns:BodyRes.ns:Transaction.ns12:Item[i].ns12:BeneficiaryName = outInfo.resultSet[i].BENEFICIARYNAME;
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns:BodyRes.ns:Transaction.ns12:Item[i].ns12:CustomerType = outInfo.resultSet[i].CUSTOMER_TYPE;
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns:BodyRes.ns:Transaction.ns12:Item[i].ns12:Amount = outInfo.resultSet[i].AMOUNT;
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns:BodyRes.ns:Transaction.ns12:Item[i].ns12:CCY = outInfo.resultSet[i].CCY;
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns:BodyRes.ns:Transaction.ns12:Item[i].ns12:Narrative = outInfo.resultSet[i].NARRATIVE;
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns:BodyRes.ns:Transaction.ns12:Item[i].ns12:CreateAt = outInfo.resultSet[i].CREATE_AT;
+				SET i = i + 1;
+			END WHILE;
+		ELSEIF p_fcode = FCODE_GETUPDATE THEN
+			DECLARE ECODE CHARACTER Environment.Variables.getInfo.resultSet[1].ECODE;
+			IF ECODE ='GW-SU-00' THEN
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns1:ResponseStatus.ns1:Status = '0';
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns1:ResponseStatus.ns1:GlobalErrorCode = '00';
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns1:ResponseStatus.ns1:GlobalErrorDescription = 'SUCCESS';
+			ELSE
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns1:ResponseStatus.ns1:Status = '1';
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns1:ResponseStatus.ns1:GlobalErrorCode = '02';
+				SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns1:ResponseStatus.ns1:GlobalErrorDescription = 'FAILURE';
+			END IF;
+			SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns1:ResponseStatus.ns1:ErrorInfo.ns1:ErrorCode = Environment.Variables.getInfo.resultSet[1].ECODE;
+			SET OutputRoot.XMLNSC.ns:XcurrAmlRes.ns1:ResponseStatus.ns1:ErrorInfo.ns1:ErrorDesc = Environment.Variables.getInfo.resultSet[1].EDESC;
+		END IF;
+		RETURN TRUE;
+	END;
+END MODULE;

@@ -1,0 +1,46 @@
+BROKER SCHEMA Version1.Common.ESQLs
+
+
+DECLARE soa NAMESPACE 'http://www.tpb.vn/common/envelope/soaenvelope/1';
+DECLARE common NAMESPACE 'http://www.tpb.vn/common/envelope/commonheader/1';
+
+CREATE COMPUTE MODULE RequestAuth
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		DECLARE AuthStr, UserAuth, PassAuth, URL_CREATE_AUTH CHARACTER;
+
+		CALL Remit.Common.ESQLs.getPartnerConfigValue('XCURRENT.USER_AUTH') INTO UserAuth;
+		CALL Remit.Common.ESQLs.getPartnerConfigValue('XCURRENT.PASS_AUTH') INTO PassAuth;
+		CALL Remit.Common.ESQLs.getPartnerConfigValue('XCURRENT.URL_CREATE_AUTH') INTO URL_CREATE_AUTH;
+
+		SET AuthStr = UserAuth || ':' || PassAuth;
+		SET AuthStr = BASE64ENCODE(AuthStr);
+
+		SET OutputRoot.HTTPRequestHeader."Content-Type" = 'application/x-www-form-urlencoded';
+		SET OutputRoot.HTTPRequestHeader.Authorization = 'Basic ' || AuthStr;
+		SET OutputRoot.HTTPRequestHeader."Access-Control-Request-Method"= 'POST';
+
+		SET OutputLocalEnvironment.Destination.HTTP.QueryString.grant_type = 'client_credentials';
+
+		SET OutputLocalEnvironment.Destination.HTTP.RequestURL = URL_CREATE_AUTH;
+		--'tls_ecdhe_rsa_with_aes_128_gcm_sha256';
+		SET OutputLocalEnvironment.Destination.HTTP.SSLProtocol = 'TLSv1.2';
+		--SET OutputLocalEnvironment.Destination.HTTP.SSLCiphers = 'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256';
+		DECLARE refEnv REFERENCE TO Environment.Variables.SOAVariables.UserDefined.AdditionalInformation;
+		DECLARE SaveTargetLog CHARACTER 'off';
+		CALL Service.Utils.ESQLs.getUDFConfig('SOAConfig','SaveTargetLog',refEnv) INTO SaveTargetLog;
+		IF (SaveTargetLog = 'on') THEN
+			SET Environment.Variables.Log.Logtype = 'DB';
+			DECLARE addIndx INTEGER CARDINALITY(Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[]);
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+1].common:Name = 'TARGETID';
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+1].common:Value = 'XCURRENT';
+
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+2].common:Name = 'TARGETSERVICE';
+			SET Environment.Variables.SOAVariables.soa:SOAEnvelope.soa:SOAServiceHeader.soa:SOACommonDetail.common:AdditionalInformation.common:NameValuePairs[addIndx+2].common:Value = URL_CREATE_AUTH;
+			SET Environment.Variables.Log.Message = 'Authen String: Basic ' || AuthStr || ';Parameter: ' || OutputLocalEnvironment.Destination.HTTP.QueryString;
+			PROPAGATE TO TERMINAL 'out1' FINALIZE NONE DELETE NONE;
+		END IF;
+		SET Environment.Variables.Log.Logtype = '';
+		RETURN TRUE;
+	END;
+END MODULE;

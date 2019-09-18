@@ -1,0 +1,37 @@
+BROKER SCHEMA Version1.Common.ESQLs
+
+
+CREATE COMPUTE MODULE ResponseAuth
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		IF Environment.Variables.ErrorMapping.* IS NOT NULL THEN
+			PROPAGATE TO TERMINAL 'out2' FINALIZE NONE DELETE NONE;
+			RETURN FALSE;
+		ELSE
+			CREATE LASTCHILD OF Environment.Variables.Auth DOMAIN 'JSON' PARSE(InputRoot.BLOB.BLOB);
+
+			DECLARE access_token, token_type, expires_in CHARACTER;
+			DECLARE dateNow TIMESTAMP CURRENT_TIMESTAMP;
+			DECLARE dateExperied TIMESTAMP;
+
+			SET access_token = Environment.Variables.Auth.JSON.Data.access_token;
+			SET token_type = Environment.Variables.Auth.JSON.Data.token_type;
+			SET expires_in = CAST(Environment.Variables.Auth.JSON.Data.expires_in AS INT) - 100;
+			SET dateExperied = dateNow + CAST(expires_in AS INTERVAL SECOND);
+
+			CALL Version1.Common.ESQLs.PR_CREATE_AUTH(access_token, token_type, expires_in, dateNow, dateExperied);
+			SET Environment.Variables.Auth.AccessToken = access_token;
+			DECLARE refEnv REFERENCE TO Environment.Variables.SOAVariables.UserDefined.AdditionalInformation;
+
+			DECLARE SaveTargetLog CHARACTER 'off';
+			CALL Service.Utils.ESQLs.getUDFConfig('SOAConfig','SaveTargetLog',refEnv) INTO SaveTargetLog;
+			IF (SaveTargetLog = 'on') THEN
+				SET Environment.Variables.Log.Logtype = 'DB';
+				SET Environment.Variables.Log.Message = InputRoot.BLOB.BLOB;
+				PROPAGATE TO TERMINAL 'out1' FINALIZE NONE DELETE NONE;
+			END IF;
+			SET Environment.Variables.Log.Logtype = '';
+		END IF;
+		RETURN TRUE;
+	END;
+END MODULE;
